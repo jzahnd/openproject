@@ -45,15 +45,18 @@ module API
               WorkPackagePayloadRepresenter)
           end
 
-          def create(work_package)
-            create_class(work_package).new(work_package)
+          def create(work_package, current_user:)
+            create_class(work_package).new(work_package, current_user: current_user)
           end
         end
 
         self.as_strategy = ::API::Utilities::CamelCasingStrategy.new
 
-        def initialize(represented)
+        attr_reader :current_user
+
+        def initialize(represented, current_user: User.anonymous)
           super(represented)
+          @current_user = current_user
         end
 
         property :linked_resources,
@@ -77,6 +80,13 @@ module API
                  as: :percentageDone,
                  render_nil: true,
                  if: -> (*) { Setting.work_package_done_ratio != 'disabled' }
+
+        property :type,
+                 embedded: true,
+                 exec_context: :decorator,
+                 getter: -> (*) {
+                   ::API::V3::Types::TypeRepresenter.new(represented.type, current_user: current_user)
+                 }
 
         property :estimated_hours,
                  as: :estimatedTime,
